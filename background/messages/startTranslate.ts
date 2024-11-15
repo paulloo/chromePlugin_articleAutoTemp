@@ -9,7 +9,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
     let timerCount = 1
     let messageTimer = null
-  const cozeHost = "https://api.coze.cn"
+  const cozeHost = process.env.PLASMO_PUBLIC_COZE_API
   const cozeToken = process.env.PLASMO_PUBLIC_COZE_SECRET_API
   const botId = process.env.PLASMO_PUBLIC_COZE_BOT_ID
   const userId = process.env.PLASMO_PUBLIC_COZE_USER_ID
@@ -19,7 +19,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
   
 
-  const apiURL = "https://api.coze.cn/v3/chat"
+  const apiURL = `${cozeHost}/v3/chat`
   const params = {
     bot_id: botId,
     user_id: userId,

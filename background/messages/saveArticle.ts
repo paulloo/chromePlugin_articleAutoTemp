@@ -10,7 +10,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
   console.log("save body:", json)
 
-    const apiURL = 'http://127.0.0.1:5508'
+  const apiURL = process.env.PLASMO_PUBLIC_ARTICLE_API
 
   const saveRes =  await axios.post(`${apiURL}/save_data`, {...json});
 
