@@ -35,6 +35,9 @@ importers:
       handlebars:
         specifier: ^4.7.8
         version: 4.7.8
+      handlebars-runtime:
+        specifier: ^1.0.12
+        version: 1.0.12
       next:
         specifier: ^14.2.4
         version: 14.2.24(@babel/core@7.26.9)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(sass@1.85.0)
@@ -2266,6 +2269,9 @@ packages:
   graphql@15.10.1:
     resolution: {integrity: sha512-BL/Xd/T9baO6NFzoMpiMD7YUZ62R6viR5tp/MULVEnbYJXZA//kRNW7J0j1w/wXArgL0sCxhDfK5dczSKn3+cg==}
     engines: {node: '>= 10.x'}
+
+  handlebars-runtime@1.0.12:
+    resolution: {integrity: sha512-X+0a9qFwm8UDo68xrQGaYWdmUjq+SU3HPOneq4qTedUkFEZBADKh8NrSwbYlkeIT/pKs8EisMrAc9rabPNk7kQ==}
 
   handlebars@4.7.8:
     resolution: {integrity: sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==}
@@ -6020,6 +6026,8 @@ snapshots:
       graphql: 15.10.1
 
   graphql@15.10.1: {}
+
+  handlebars-runtime@1.0.12: {}
 
   handlebars@4.7.8:
     dependencies:

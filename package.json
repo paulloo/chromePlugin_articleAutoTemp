@@ -20,6 +20,7 @@
     "flowbite": "^2.5.1",
     "flowbite-react": "^0.10.1",
     "handlebars": "^4.7.8",
+    "handlebars-runtime": "^1.0.12",
     "next": "^14.2.4",
     "plasmo": "0.84.0",
     "radash": "^12.1.0",
@@ -61,8 +62,8 @@
       "source": "network"
     },
     "content_security_policy": {
-      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
-      "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
+      "extension_pages": "script-src 'self'; object-src 'self'",
+      "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline'"
     },
     "web_accessible_resources": [
       {

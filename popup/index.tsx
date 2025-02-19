@@ -172,6 +172,7 @@ function IndexPopup() {
             <h2 className="text-lg font-semibold mb-3">本地文章</h2>
             <div className="bg-off-base rounded-lg p-4">
               <LocalArticles
+                currentTabId={currentTabId}
                 onClick={async (filename: string) => {
                   try {
                     logger.info('开始处理文章', {

@@ -8,9 +8,10 @@ import type { ApiResponse, ErrorResponse } from "../utils/errorHandler"
 interface Props {
   onClick?: (filename: string) => void
   onDelete?: (filename: string) => void
+  currentTabId?: number | null
 }
 
-const LocalArticles = ({ onClick, onDelete }: Props) => {
+const LocalArticles = ({ onClick, onDelete, currentTabId }: Props) => {
   const { localArticles, loading, error, refreshLocalArticles } = useLocalArticles()
 
   const handleRefresh = useCallback(() => {
@@ -27,6 +28,7 @@ const LocalArticles = ({ onClick, onDelete }: Props) => {
         category: LogCategory.ARTICLE,
         data: { 
           filename,
+          currentTabId,
           时间戳: new Date().toISOString() 
         }
       })
@@ -56,7 +58,8 @@ const LocalArticles = ({ onClick, onDelete }: Props) => {
         name: "renderArticle",
         body: {
           data: response.data,
-          templateName: 'default'
+          templateName: 'default',
+          tabId: currentTabId
         }
       })
 
@@ -67,20 +70,18 @@ const LocalArticles = ({ onClick, onDelete }: Props) => {
           时间戳: new Date().toISOString() 
         }
       })
-
     } catch (error) {
-      logger.error('处理文章点击失败', {
+      logger.error('处理文章失败', {
         category: LogCategory.ARTICLE,
         data: { 
-          错误类型: error instanceof Error ? error.name : typeof error,
-          错误信息: error instanceof Error ? error.message : String(error),
-          错误栈: error instanceof Error ? error.stack : undefined,
           filename,
-          时间戳: new Date().toISOString()
+          currentTabId,
+          错误类型: error instanceof Error ? error.name : typeof error,
+          错误信息: error instanceof Error ? error.message : String(error)
         }
       })
     }
-  }, [])
+  }, [currentTabId])
 
   if (loading) {
     return <div className="p-4 text-center text-gray-600">加载中...</div>

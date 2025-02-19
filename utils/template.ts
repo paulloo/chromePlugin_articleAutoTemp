@@ -1,6 +1,7 @@
 // @ts-ignore
-import Handlebars from "handlebars"
+import Handlebars from "handlebars/runtime"
 import { logger, LogCategory } from "./logger"
+import { defaultTemplate } from "../templates/article.precompiled"
 
 // 注册 Handlebars 助手函数
 Handlebars.registerHelper('addOne', function(value: number) {
@@ -20,23 +21,19 @@ Handlebars.registerHelper('boldFirstSentence', function(text: string) {
   )
 })
 
-// 缓存编译的模板
-const templateCache = new Map<string, HandlebarsTemplateDelegate>()
+// 缓存预编译的模板
+const templateCache = new Map<string, HandlebarsTemplateDelegate>([
+  ['default', defaultTemplate]
+])
 
-// 获取或创建编译模板
-export function getCompiledTemplate(templateString: string, templateName: string): HandlebarsTemplateDelegate {
+// 获取预编译的模板
+export function getCompiledTemplate(_templateString: string, templateName: string): HandlebarsTemplateDelegate {
   if (!templateCache.has(templateName)) {
-    try {
-      const compiled = Handlebars.compile(templateString)
-      templateCache.set(templateName, compiled)
-      return compiled
-    } catch (error) {
-      logger.error('模板编译失败', {
-        category: LogCategory.ARTICLE,
-        data: { error, templateName }
-      })
-      throw error
-    }
+    logger.warn('未找到预编译模板，使用默认模板', {
+      category: LogCategory.ARTICLE,
+      data: { templateName }
+    })
+    return defaultTemplate
   }
   return templateCache.get(templateName)!
 }
