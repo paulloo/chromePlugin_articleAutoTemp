@@ -1,6 +1,8 @@
 import { unescape } from "querystring"
 import axios from "axios"
+// @ts-ignore
 import Handlebars from "handlebars"
+import type { ArticleData } from '../types/article'
 
 function filterReference(htmlString) {
   if (!htmlString) {
@@ -53,56 +55,114 @@ function stripHTMLTags(htmlString: string, tagNames?: string[]): string {
   return htmlString.replace(regex, "")
 }
 
-Handlebars.registerHelper("addOne", function (num) {
-  return num + 1
+// 注册 Handlebars 助手函数
+Handlebars.registerHelper('addOne', function(value: number) {
+  return value + 1
 })
 
-Handlebars.registerHelper("hasItems", function (items) {
-  return items && items.length > 0
-})
-
-Handlebars.registerHelper("boldFirstSentence", function (text) {
-  let indexCN = text.indexOf("。")
-  let indexEN = text.indexOf(".")
-
-  // 找到第一个句号的位置
-  let index = Math.min(
-    indexCN !== -1 ? indexCN : Infinity,
-    indexEN !== -1 ? indexEN : Infinity
+Handlebars.registerHelper('boldFirstSentence', function(text: string) {
+  if (!text) return ''
+  const sentences = text.split(/(?<=[.!?])\s+/)
+  if (sentences.length === 0) return text
+  
+  const firstSentence = sentences[0]
+  const restSentences = sentences.slice(1).join(' ')
+  
+  return new Handlebars.SafeString(
+    `<strong>${firstSentence}</strong> ${restSentences}`
   )
-
-  if (
-    index !== Infinity &&
-    (index !== text.lastIndexOf("。") || index !== text.lastIndexOf("."))
-  ) {
-    let firstSentence = text.slice(0, index + 1)
-    let remainingText = text.slice(index + 1)
-    return new Handlebars.SafeString(
-      "<strong>" + firstSentence + "</strong>" + remainingText
-    )
-  }
-  return text // 如果没有找到句号，则返回原文本
 })
+
+interface TemplateData {
+  guide: string
+  profile: string
+  steps: Array<{
+    title: string
+    step_items: Array<{
+      content: string
+      children: string[]
+      img?: string
+    }>
+  }>
+  history: Array<{
+    title: string
+    url: string
+  }>
+}
+
+interface RenderMessage {
+  temp: string
+  data: ArticleData
+}
 
 export const life = 42
 
-window.addEventListener("message", async function (event) {
+// 监听消息并处理渲染
+window.addEventListener('message', (event: MessageEvent<RenderMessage>) => {
   try {
+    console.log('沙箱收到消息:', event.data)
+    
     const { temp, data } = event.data
-    console.log("templateSource: ", temp)
-    const source = event.source as {
-      window: WindowProxy
+    if (!temp || !data) {
+      console.error('模板或数据为空:', { temp, data })
+      throw new Error('模板或数据为空')
     }
 
-    const tempData = JSON.parse(stripHTMLTags(JSON.stringify(data)))
-    // 渲染模板并插入到 DOM 中
-    const template = Handlebars.compile(temp)
-    const htmlString = template(tempData)
-    console.log("htmlString in sendbox: ", htmlString)
-    source.window.postMessage(htmlString, event.origin)
-  } catch (err) {
-    console.error(err)
-  }
+    console.log('开始渲染模板，数据:', {
+      模板前100字符: temp.substring(0, 100),
+      数据: data
+    })
 
-  // source.window.postMessage(eval(event.data), event.origin)
+    // 编译模板
+    const template = Handlebars.compile(temp)
+
+    // 准备数据
+    const templateData: TemplateData = {
+      guide: data.title,
+      profile: data.profile,
+      steps: data.steps.map(step => ({
+        title: step.title,
+        step_items: step.step_items.map(item => ({
+          content: item.content,
+          children: item.children,
+          img: item.image
+        }))
+      })),
+      history: []
+    }
+
+    console.log('处理后的模板数据:', templateData)
+
+    // 渲染模板并发送结果
+    const html = template(templateData)
+    
+    console.log('渲染结果:', {
+      html前500字符: html.substring(0, 500),
+      html长度: html.length
+    })
+
+    // 验证渲染结果
+    if (!html) {
+      throw new Error('渲染结果为空')
+    }
+
+    // 尝试解析渲染结果以确保是有效的 HTML
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html, 'text/html')
+      if (doc.querySelector('parsererror')) {
+        throw new Error('渲染结果不是有效的 HTML')
+      }
+    } catch (parseError) {
+      console.error('HTML 解析失败:', parseError)
+      throw new Error('渲染结果格式无效')
+    }
+
+    // 发送渲染结果
+    console.log('发送渲染结果到父窗口')
+    window.parent.postMessage(html, '*')
+  } catch (error) {
+    console.error('渲染失败:', error)
+    window.parent.postMessage(`渲染失败: ${error instanceof Error ? error.message : String(error)}`, '*')
+  }
 })

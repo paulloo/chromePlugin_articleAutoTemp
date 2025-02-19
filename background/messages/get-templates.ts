@@ -1,7 +1,6 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 import axios from "axios"
 import { createErrorResponse, createSuccessResponse, withErrorHandling } from "../../utils/errorHandler"
-import type { ArticleRequestParams } from "../../types/article"
 import { logger, LogCategory } from "../../utils/logger"
 
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
@@ -19,47 +18,39 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
     ))
   }
 
-  const params = req.body as ArticleRequestParams
-  if (!params?.filename) {
-    logger.error('文件名不能为空', {
-      category: LogCategory.ARTICLE,
-      data: { requestId, params }
-    })
-    return res.send(createErrorResponse(
-      new Error("文件名不能为空"),
-      "文件名不能为空"
-    ))
-  }
-
   try {
-    logger.info('开始删除文章', {
+    logger.info('获取模板列表', {
       category: LogCategory.ARTICLE,
-      data: { requestId, filename: params.filename }
+      data: { requestId }
     })
 
-    await axios.delete(`${apiURL}/delete-local-article-by-name`, {
-      params: { filename: params.filename }
-    })
+    const response = await axios.get(`${apiURL}/templates`)
+    
+    if (!response.data) {
+      throw new Error('获取模板列表失败')
+    }
 
-    logger.info('删除文章成功', {
-      category: LogCategory.ARTICLE,
-      data: { requestId, filename: params.filename }
-    })
-
-    return res.send(createSuccessResponse(void 0))
-  } catch (error) {
-    logger.error('删除文章失败', {
+    logger.info('获取模板列表成功', {
       category: LogCategory.ARTICLE,
       data: { 
         requestId,
-        filename: params.filename,
+        templates: response.data
+      }
+    })
+
+    return res.send(createSuccessResponse(response.data))
+  } catch (error) {
+    logger.error('获取模板列表失败', {
+      category: LogCategory.ARTICLE,
+      data: { 
+        requestId,
         error,
         errorMessage: error.message,
         errorStack: error.stack
       }
     })
-    throw error
+    return res.send(createErrorResponse(error))
   }
 }
 
-export default withErrorHandling(handler)
+export default withErrorHandling(handler) 

@@ -5,7 +5,11 @@ const colors = require('tailwindcss/colors')
 module.exports = {
   mode: "jit",
   content: [
-    "./**/*.tsx",
+    "./popup/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "./contents/**/*.{js,jsx,ts,tsx}",
+    "./options/**/*.{js,jsx,ts,tsx}",
+    "./background/**/*.{js,jsx,ts,tsx}",
     'node_modules/flowbite-react/lib/esm/**/*.js'
   ],
   darkMode: "class",

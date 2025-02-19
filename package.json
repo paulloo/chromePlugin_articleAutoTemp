@@ -11,7 +11,7 @@
     "package": "plasmo package"
   },
   "dependencies": {
-    "@plasmohq/messaging": "^0.6.2",
+    "@plasmohq/messaging": "^0.7.1",
     "@plasmohq/selector": "^0.0.5",
     "@plasmohq/storage": "^1.11.0",
     "axios": "^1.7.2",
@@ -21,7 +21,7 @@
     "flowbite-react": "^0.10.1",
     "handlebars": "^4.7.8",
     "next": "^14.2.4",
-    "plasmo": "0.88.0",
+    "plasmo": "0.84.0",
     "radash": "^12.1.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"
@@ -45,7 +45,8 @@
     ],
     "externally_connectable": {
       "matches": [
-        "*://*.localhost/*"
+        "*://*.localhost/*",
+        "https://mp.weixin.qq.com/*"
       ]
     },
     "permissions": [
@@ -53,20 +54,21 @@
       "scripting",
       "tabs",
       "storage",
-      "scripting",
       "contextMenus",
-      "activeTab",
-      "fileSystem"
+      "activeTab"
     ],
     "file_system_provider_capabilities": {
       "source": "network"
     },
     "content_security_policy": {
-      "extension_pages": "script-src 'self'; object-src 'self'"
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+      "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
     },
     "web_accessible_resources": [
       {
         "matches": [
+          "https://mp.weixin.qq.com/*",
+          "http://mp.weixin.qq.com/*",
           "<all_urls>"
         ],
         "resources": [
@@ -78,9 +80,28 @@
           "templates/*.hbs",
           "templates/*.tsx",
           "templates/articles/*.json",
-          "sandboxes/*.ts"
+          "sandboxes/*.ts",
+          "sandboxes/*.js",
+          "sandboxes/mpWixin.js",
+          "sandboxes/mpWixin.ts",
+          "node_modules/handlebars/dist/*.js"
         ]
       }
+    ],
+    "background": {
+      "service_worker": "core/worker.ts"
+    }
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "lmdb",
+      "msgpackr-extract"
+    ],
+    "onlyBuiltDependencies": [
+      "sharp"
     ]
   }
 }

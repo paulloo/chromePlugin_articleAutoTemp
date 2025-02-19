@@ -1,82 +1,154 @@
-import { clsx } from "clsx"
-import { useEffect, useRef, useState } from "react"
+import { useCallback } from "react"
+import { useLocalArticles } from "./hooks/useLocalArticles"
+import type { ArticleListItem, ArticleData } from "../types/article"
+import { sendToBackground } from "@plasmohq/messaging"
+import { logger, LogCategory } from "../utils/logger"
+import type { ApiResponse, ErrorResponse } from "../utils/errorHandler"
 
-function LocalArticles(props) {
-  const [curernt, setCurernt] = useState(-1)
-  const [canEdit, setCanEdit] = useState(false)
+interface Props {
+  onClick?: (filename: string) => void
+  onDelete?: (filename: string) => void
+}
 
-  function handleClick(item, index) {
-    if (curernt === index) {
-      return
+const LocalArticles = ({ onClick, onDelete }: Props) => {
+  const { localArticles, loading, error, refreshLocalArticles } = useLocalArticles()
+
+  const handleRefresh = useCallback(() => {
+    logger.info('手动刷新列表', {
+      category: LogCategory.ARTICLE,
+      data: { 时间戳: new Date().toISOString() }
+    })
+    refreshLocalArticles()
+  }, [refreshLocalArticles])
+
+  const handleClick = useCallback(async (filename: string) => {
+    try {
+      logger.info('处理文章点击', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          filename,
+          时间戳: new Date().toISOString() 
+        }
+      })
+
+      // 1. 获取文章数据
+      const response = await sendToBackground<{ filename: string }, ApiResponse<ArticleData>>({
+        name: "get-local-article-by-name",
+        body: { filename }
+      })
+
+      if (!response.success) {
+        const errorResponse = response as ErrorResponse
+        throw new Error(errorResponse.error.message || '获取文章失败')
+      }
+
+      logger.debug('获取到文章数据', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          filename,
+          response,
+          时间戳: new Date().toISOString() 
+        }
+      })
+
+      // 2. 渲染文章
+      await sendToBackground({
+        name: "renderArticle",
+        body: {
+          data: response.data,
+          templateName: 'default'
+        }
+      })
+
+      logger.info('文章渲染完成', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          filename,
+          时间戳: new Date().toISOString() 
+        }
+      })
+
+    } catch (error) {
+      logger.error('处理文章点击失败', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          错误类型: error instanceof Error ? error.name : typeof error,
+          错误信息: error instanceof Error ? error.message : String(error),
+          错误栈: error instanceof Error ? error.stack : undefined,
+          filename,
+          时间戳: new Date().toISOString()
+        }
+      })
     }
+  }, [])
 
-    setCurernt(index)
-    props.onClick(item)
+  if (loading) {
+    return <div className="p-4 text-center text-gray-600">加载中...</div>
   }
 
-  function handleDelete(item, index) {
-    setCurernt(-1)
-    props.onDelete(item)
-  }
-
-  function handleEdie() {
-    setCanEdit(!canEdit)
-  }
-  return (
-    <div className="bg-[#f0f0f0] px-[16px] ">
-      <div className=" text-lg font-semibold text-gray-900 dark:text-white flex items-center py-[10px]">
-        <div>文章列表: </div>
-        <a
-          href="javascript:void();"
-          class="inline-flex px-2.5 py-1.5 text-xs font-medium text-center text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-          onClick={() => handleEdie()}>
-          {canEdit ? "取消" : "编辑"}
-        </a>
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="text-red-500 mb-2">错误: {error}</div>
+        <button 
+          onClick={handleRefresh}
+          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          重试
+        </button>
       </div>
-      <ul className="max-w-md space-y-1 text-gray-500 list-inside dark:text-gray-400">
-        {props.list?.map((item, index) => {
-          return (
-            <li className="flex justify-between items-center" key={index}>
-              <div
-                className={clsx(
-                  "flex-1 bg-[#F0F0F0] px-[15px] flex items-center cursor-pointer py-[10px] border-b-gray-100",
-                  curernt === index ? "text-[#666]" : ""
-                )}
-                onClick={() => handleClick(item, index)}>
-                <svg
-                  className="w-3.5 h-3.5 me-2 text-green-500 dark:text-green-400 flex-shrink-0"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="currentColor"
-                  viewBox="0 0 20 20">
-                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
-                </svg>
-                {item}
-              </div>
-              {canEdit ? (
-                <div
-                  onClick={() => handleDelete(item, index)}
-                  className="cursor-pointer w-[80px] flex justify-center items-center">
-                  <svg
-                    className="w-3 h-3"
-                    aria-hidden="true"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 14 14">
-                    <path
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
-                    />
-                  </svg>
-                </div>
-              ) : null}
-            </li>
-          )
-        })}
-      </ul>
+    )
+  }
+
+  if (!localArticles.length) {
+    return (
+      <div className="p-4">
+        <div className="text-gray-600 mb-2">暂无文章</div>
+        <button 
+          onClick={handleRefresh}
+          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          刷新
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">本地文章列表</h2>
+        <button 
+          onClick={handleRefresh}
+          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          刷新
+        </button>
+      </div>
+      <div className="space-y-2">
+        {localArticles.map((article) => (
+          <div 
+            key={article.filename}
+            className="flex justify-between items-center p-3 bg-white rounded shadow hover:shadow-md transition-shadow"
+          >
+            <div 
+              className="flex-1 cursor-pointer"
+              onClick={() => handleClick(article.filename)}
+            >
+              <div className="font-medium">{article.title}</div>
+              <div className="text-sm text-gray-500">{article.filename}</div>
+            </div>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(article.filename)}
+                className="ml-2 px-2 py-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+              >
+                删除
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
