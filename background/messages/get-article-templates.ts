@@ -2,6 +2,9 @@ import type { PlasmoMessaging } from "@plasmohq/messaging"
 import axios from "axios"
 import { createErrorResponse, createSuccessResponse, withErrorHandling } from "../../utils/errorHandler"
 import { logger, LogCategory } from "../../utils/logger"
+import { apiClient } from "../../utils/api"
+import { ApiEndpoints } from "../../types/api"
+import type { Template, ApiResponse } from "../../types/api"
 
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const requestId = Math.random().toString(36).substring(7)
@@ -24,7 +27,10 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
       data: { requestId }
     })
 
-    const response = await axios.get(`${apiURL}/templates`)
+    const response = await apiClient.request<Template>({
+      method: 'GET',
+      url: ApiEndpoints.GET_ARTICLE_TEMPLATES
+    })
     
     if (!response.data) {
       throw new Error('获取模板列表失败')

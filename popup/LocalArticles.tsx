@@ -1,99 +1,97 @@
-import { useCallback } from "react"
-import { useLocalArticles } from "./hooks/useLocalArticles"
+import { useEffect, useState, useCallback } from "react"
+import { useLocalArticles } from "../hooks/useLocalArticles"
 import type { ArticleListItem, ArticleData } from "../types/article"
 import { sendToBackground } from "@plasmohq/messaging"
 import { logger, LogCategory } from "../utils/logger"
 import type { ApiResponse, ErrorResponse } from "../utils/errorHandler"
+import type { ArticleContent } from "../types/article"
 
 interface Props {
-  onClick?: (filename: string) => void
-  onDelete?: (filename: string) => void
-  currentTabId?: number | null
+  currentTabId: number | null
+  templateId: string
+  onClick: (id: string) => void
+  onDelete?: (id: string) => void
 }
 
-const LocalArticles = ({ onClick, onDelete, currentTabId }: Props) => {
+export default function LocalArticles({ currentTabId, templateId, onClick, onDelete }: Props) {
   const { localArticles, loading, error, refreshLocalArticles } = useLocalArticles()
 
-  const handleRefresh = useCallback(() => {
-    logger.info('手动刷新列表', {
-      category: LogCategory.ARTICLE,
-      data: { 时间戳: new Date().toISOString() }
-    })
-    refreshLocalArticles()
-  }, [refreshLocalArticles])
-
-  const handleClick = useCallback(async (filename: string) => {
+  const handleClick = useCallback(async (id: string) => {
     try {
-      logger.info('处理文章点击', {
+      if (!currentTabId) {
+        logger.warn('未找到当前标签页', {
+          category: LogCategory.ARTICLE,
+          data: { id }
+        })
+        return
+      }
+
+      if (!templateId) {
+        throw new Error('请先选择一个模板')
+      }
+
+      logger.info('开始处理本地文章', {
         category: LogCategory.ARTICLE,
         data: { 
-          filename,
-          currentTabId,
-          时间戳: new Date().toISOString() 
+          id,
+          templateId,
+          tabId: currentTabId,
+          timestamp: new Date().toISOString()
         }
       })
 
-      // 1. 获取文章数据
-      const response = await sendToBackground<{ filename: string }, ApiResponse<ArticleData>>({
+      const response = await sendToBackground<{ id: string }, ApiResponse<ArticleContent>>({
         name: "get-local-article-by-name",
-        body: { filename }
+        body: { id }
       })
 
       if (!response.success) {
         const errorResponse = response as ErrorResponse
-        throw new Error(errorResponse.error.message || '获取文章失败')
+        throw new Error(errorResponse.error.details || '获取文章失败')
       }
 
-      logger.debug('获取到文章数据', {
-        category: LogCategory.ARTICLE,
-        data: { 
-          filename,
-          response,
-          时间戳: new Date().toISOString() 
-        }
-      })
-
-      // 2. 渲染文章
-      await sendToBackground({
+      const res = await sendToBackground({
         name: "renderArticle",
         body: {
           data: response.data,
-          templateName: 'default',
+          templateId,
           tabId: currentTabId
         }
       })
-
       logger.info('文章渲染完成', {
         category: LogCategory.ARTICLE,
         data: { 
-          filename,
-          时间戳: new Date().toISOString() 
+          id,
+          templateId,
+          timestamp: new Date().toISOString()
         }
       })
     } catch (error) {
       logger.error('处理文章失败', {
         category: LogCategory.ARTICLE,
         data: { 
-          filename,
-          currentTabId,
           错误类型: error instanceof Error ? error.name : typeof error,
-          错误信息: error instanceof Error ? error.message : String(error)
+          错误信息: error instanceof Error ? error.message : String(error),
+          id,
+          templateId,
+          timestamp: new Date().toISOString()
         }
       })
+      throw error
     }
-  }, [currentTabId])
+  }, [currentTabId, templateId])
 
   if (loading) {
-    return <div className="p-4 text-center text-gray-600">加载中...</div>
+    return <div className="text-center text-gray-500">加载中...</div>
   }
 
   if (error) {
     return (
-      <div className="p-4">
-        <div className="text-red-500 mb-2">错误: {error}</div>
-        <button 
-          onClick={handleRefresh}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+      <div className="text-center text-red-500">
+        {error}
+        <button
+          className="ml-2 text-blue-500 hover:text-blue-600"
+          onClick={refreshLocalArticles}
         >
           重试
         </button>
@@ -101,13 +99,13 @@ const LocalArticles = ({ onClick, onDelete, currentTabId }: Props) => {
     )
   }
 
-  if (!localArticles.length) {
+  if (!localArticles?.length) {
     return (
-      <div className="p-4">
-        <div className="text-gray-600 mb-2">暂无文章</div>
-        <button 
-          onClick={handleRefresh}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+      <div className="text-center text-gray-500">
+        暂无本地文章
+        <button
+          className="ml-2 text-blue-500 hover:text-blue-600"
+          onClick={refreshLocalArticles}
         >
           刷新
         </button>
@@ -116,42 +114,33 @@ const LocalArticles = ({ onClick, onDelete, currentTabId }: Props) => {
   }
 
   return (
-    <div className="p-4">
+    <div className="space-y-2">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">本地文章列表</h2>
         <button 
-          onClick={handleRefresh}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={refreshLocalArticles}
+          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           刷新
         </button>
       </div>
       <div className="space-y-2">
         {localArticles.map((article) => (
-          <div 
-            key={article.filename}
-            className="flex justify-between items-center p-3 bg-white rounded shadow hover:shadow-md transition-shadow"
+          <div
+            key={article.title}
+            className="flex items-center justify-between p-2 bg-white rounded hover:bg-gray-50"
           >
-            <div 
-              className="flex-1 cursor-pointer"
-              onClick={() => handleClick(article.filename)}
+            <span className="text-sm truncate flex-1">{article.title}</span>
+            <button
+              className="ml-2 text-sm text-blue-500 hover:text-blue-600"
+              onClick={() => handleClick(article.id)}
+              disabled={!currentTabId || !templateId}
             >
-              <div className="font-medium">{article.title}</div>
-              <div className="text-sm text-gray-500">{article.filename}</div>
-            </div>
-            {onDelete && (
-              <button
-                onClick={() => onDelete(article.filename)}
-                className="ml-2 px-2 py-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-              >
-                删除
-              </button>
-            )}
+              使用
+            </button>
           </div>
         ))}
       </div>
     </div>
   )
 }
-
-export default LocalArticles

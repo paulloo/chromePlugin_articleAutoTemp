@@ -2,14 +2,14 @@ import type { PlasmoMessaging } from "@plasmohq/messaging"
 import { logger, LogCategory } from "../../utils/logger"
 import { apiClient } from "../../utils/api"
 import { ApiEndpoints } from "../../types/api"
-import type { LocalArticle, ApiResponse } from "../../types/api"
+import type { Template, ApiResponse } from "../../types/api"
 
-const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<LocalArticle>> = async (req, res) => {
+const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<Template>> = async (req, res) => {
   const requestId = Math.random().toString(36).substring(7)
 
   try {
-    logger.info('开始获取本地文章列表', {
-      category: LogCategory.ARTICLE,
+    logger.info('开始获取模板列表', {
+      category: LogCategory.TEMPLATE,
       data: { 
         requestId,
         timestamp: new Date().toISOString()
@@ -17,22 +17,21 @@ const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<LocalArticle>> =
     })
 
     logger.debug('准备发送API请求', {
-      category: LogCategory.ARTICLE,
+      category: LogCategory.TEMPLATE,
       data: { 
         requestId,
-        endpoint: ApiEndpoints.GET_ARTICLES,
+        endpoint: ApiEndpoints.GET_TEMPLATES,
         timestamp: new Date().toISOString()
       }
     })
 
-    const response = await apiClient.request<LocalArticle>({
+    const response = await apiClient.request<Template>({
       method: 'GET',
-      url: ApiEndpoints.GET_ARTICLES
+      url: ApiEndpoints.GET_TEMPLATES
     })
-    
-    console.log("response: ", response)
+
     logger.debug('收到API响应', {
-      category: LogCategory.ARTICLE,
+      category: LogCategory.TEMPLATE,
       data: { 
         requestId,
         responseStatus: response.status,
@@ -46,30 +45,20 @@ const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<LocalArticle>> =
       throw new Error('API响应数据格式不正确')
     }
 
-    if (response.data.items.length === 0) {
-      logger.warn('API返回的文章列表为空', {
-        category: LogCategory.ARTICLE,
-        data: { 
-          requestId,
-          timestamp: new Date().toISOString()
-        }
-      })
-    }
-
-    logger.info('获取本地文章列表成功', {
-      category: LogCategory.ARTICLE,
+    logger.info('获取模板列表成功', {
+      category: LogCategory.TEMPLATE,
       data: { 
         requestId,
-        articlesCount: response.data.items.length,
-        articles: response.data.items.map(a => a.title),
+        templatesCount: response.data.items.length,
+        templates: response.data.items.map(t => t.name),
         timestamp: new Date().toISOString()
       }
     })
 
     res.send(response)
   } catch (error) {
-    logger.error('获取本地文章列表失败', {
-      category: LogCategory.ARTICLE,
+    logger.error('获取模板列表失败', {
+      category: LogCategory.TEMPLATE,
       data: { 
         requestId,
         error,
@@ -87,7 +76,7 @@ const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<LocalArticle>> =
 
     res.send({
       status: 'error',
-      message: error instanceof Error ? error.message : '获取本地文章列表失败',
+      message: error instanceof Error ? error.message : '获取模板列表失败',
       data: {
         items: [],
         pagination: null
@@ -97,4 +86,4 @@ const handler: PlasmoMessaging.MessageHandler<void, ApiResponse<LocalArticle>> =
   }
 }
 
-export default handler
+export default handler 

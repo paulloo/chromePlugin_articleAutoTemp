@@ -8,11 +8,21 @@ export enum LogLevel {
 
 // 日志类别枚举
 export enum LogCategory {
-  ARTICLE = 'article',
-  TRANSLATE = 'translate',
-  BACKGROUND = 'background',
-  POPUP = 'popup'
+  TEMPLATE = 'TEMPLATE',
+  ARTICLE = 'ARTICLE',
+  TRANSLATE = 'TRANSLATE',
+  REQUEST = 'REQUEST',
+  CONTENT_SCRIPT = 'CONTENT_SCRIPT'
 }
+
+// 扩展日志类别
+declare module './logger' {
+  export interface LogCategoryMap {
+    API: 'API'
+  }
+}
+
+export type LogCategoryType = LogCategory | keyof LogCategoryMap
 
 interface LogOptions {
   category: LogCategory

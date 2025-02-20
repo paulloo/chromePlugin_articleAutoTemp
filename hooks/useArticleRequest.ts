@@ -5,6 +5,7 @@ import { useRequest } from "./useRequest"
 import type { RequestOptions } from "./useRequest"
 import { logger, LogCategory } from "../utils/logger"
 import { articleService } from "../services/articleService"
+import type { ApiError } from "~types/api"
 
 // 文章相关的请求函数
 const articleRequests = {
@@ -25,9 +26,9 @@ const articleRequests = {
           responseJSON: JSON.stringify(response, null, 2)
         }
       })
-
-      if (!response.success) {
-        const errorResponse = response as ErrorResponse
+debugger
+      if (response.status === 'error') {
+        const errorResponse = response as unknown as ApiError
         logger.error('获取文章列表失败', {
           category: LogCategory.ARTICLE,
           data: { error: errorResponse.error }

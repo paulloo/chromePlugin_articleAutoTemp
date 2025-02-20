@@ -1,0 +1,861 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "WikiHow Article Service API",
+        "version": "1.0.0",
+        "description": "API documentation for WikiHow article scraping and template service",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:5508",
+            "description": "API Server"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Article Templates",
+            "description": "Article scraping template operations"
+        },
+        {
+            "name": "Handlebars Templates",
+            "description": "Handlebars rendering template operations"
+        }
+    ],
+    "components": {
+        "schemas": {
+            "Article": {
+                "type": "object",
+                "required": [
+                    "title",
+                    "profile",
+                    "steps"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Article title"
+                    },
+                    "profile": {
+                        "type": "string",
+                        "description": "Article introduction"
+                    },
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "description": "Step title"
+                                },
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "content": {
+                                                "type": "string",
+                                                "description": "Step content"
+                                            },
+                                            "image": {
+                                                "type": "string",
+                                                "description": "Image URL"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Template": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "template_content"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Template name"
+                    },
+                    "template_content": {
+                        "type": "string",
+                        "description": "Handlebars template content"
+                    },
+                    "helpers": {
+                        "type": "object",
+                        "description": "Template helper functions"
+                    }
+                }
+            },
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "fail",
+                            "error"
+                        ]
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "details": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "UploadResponse": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "number"
+                    },
+                    "mimetype": {
+                        "type": "string"
+                    }
+                }
+            },
+            "FileInfo": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "number"
+                    },
+                    "created": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "modified": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            }
+        }
+    },
+    "paths": {
+        "/api/articles": {
+            "get": {
+                "summary": "Get all articles",
+                "tags": [
+                    "Articles"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of articles"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create new article",
+                "tags": [
+                    "Articles"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Article"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Article created successfully"
+                    }
+                }
+            }
+        },
+        "/api/articles/{id}": {
+            "get": {
+                "summary": "Get article by ID",
+                "tags": [
+                    "Articles"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Article details"
+                    }
+                }
+            },
+            "put": {
+                "summary": "Update article",
+                "tags": [
+                    "Articles"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Article"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Article updated successfully"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete article",
+                "tags": [
+                    "Articles"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Article deleted successfully"
+                    }
+                }
+            }
+        },
+        "/api/articles/scrape": {
+            "post": {
+                "summary": "Scrape article from URL",
+                "tags": [
+                    "Articles"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "url"
+                                ],
+                                "properties": {
+                                    "url": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Article scraped successfully"
+                    }
+                }
+            }
+        },
+        "/api/article-templates": {
+            "get": {
+                "summary": "Get all article scraping templates",
+                "tags": [
+                    "Article Templates"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of article templates"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create new article template",
+                "tags": [
+                    "Article Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "xpaths"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "xpaths": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template created successfully"
+                    }
+                }
+            }
+        },
+        "/api/article-templates/{filename}": {
+            "get": {
+                "summary": "Get article template by filename",
+                "tags": [
+                    "Article Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Article template details"
+                    }
+                }
+            },
+            "put": {
+                "summary": "Update article template",
+                "tags": [
+                    "Article Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ArticleTemplate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template updated successfully"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete article template",
+                "tags": [
+                    "Article Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template deleted successfully"
+                    }
+                }
+            }
+        },
+        "/api/article-templates/{filename}/test": {
+            "post": {
+                "summary": "Test article template with URL",
+                "tags": [
+                    "Article Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "url"
+                                ],
+                                "properties": {
+                                    "url": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template test results"
+                    }
+                }
+            }
+        },
+        "/api/article-templates/validate": {
+            "post": {
+                "summary": "Validate article template",
+                "tags": [
+                    "Article Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ArticleTemplate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template validation results"
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates": {
+            "get": {
+                "summary": "Get all Handlebars templates",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of templates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Template"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create new template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Template"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template created successfully"
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates/{id}": {
+            "get": {
+                "summary": "Get template by ID",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template details"
+                    },
+                    "404": {
+                        "description": "Template not found"
+                    }
+                }
+            },
+            "put": {
+                "summary": "Update template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "template_content"
+                                ],
+                                "properties": {
+                                    "template_content": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template updated successfully"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template deleted successfully"
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates/render": {
+            "post": {
+                "summary": "Render article with template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "template_id",
+                                    "article_data"
+                                ],
+                                "properties": {
+                                    "template_id": {
+                                        "type": "string",
+                                        "description": "ID of the template to use"
+                                    },
+                                    "article_id": {
+                                        "type": "string",
+                                        "description": "ID of the article (optional)"
+                                    },
+                                    "article_data": {
+                                        "type": "object",
+                                        "description": "Article data for template rendering"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Template rendered successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "html": {
+                                            "type": "string",
+                                            "description": "Rendered HTML content"
+                                        },
+                                        "template_name": {
+                                            "type": "string",
+                                            "description": "Name of the template used"
+                                        },
+                                        "article_id": {
+                                            "type": "string",
+                                            "description": "ID of the article"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates/batch-render": {
+            "post": {
+                "summary": "Render multiple templates",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "templates",
+                                    "data"
+                                ],
+                                "properties": {
+                                    "templates": {
+                                        "type": "object"
+                                    },
+                                    "data": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Templates rendered successfully"
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates/partials": {
+            "post": {
+                "summary": "Import partial template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "content"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Partial template imported successfully"
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get list of partial templates",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of partial templates"
+                    }
+                }
+            }
+        },
+        "/api/handlebars-templates/{id}/precompiled": {
+            "get": {
+                "summary": "Get precompiled template",
+                "tags": [
+                    "Handlebars Templates"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Precompiled template"
+                    }
+                }
+            }
+        },
+        "/api/upload": {
+            "post": {
+                "summary": "Upload a file",
+                "tags": [
+                    "Upload"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "File uploaded successfully"
+                    }
+                }
+            }
+        },
+        "/api/upload/{filename}": {
+            "get": {
+                "summary": "Get file info",
+                "tags": [
+                    "Upload"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File information"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete file",
+                "tags": [
+                    "Upload"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File deleted successfully"
+                    }
+                }
+            }
+        }
+    }
+}

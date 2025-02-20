@@ -9,6 +9,16 @@ export interface ArticleListItem {
 export interface ArticleContent {
   title: string
   content: string
+  profile?: string
+  steps?: Array<{
+    title: string
+    step_items: Array<{
+      content: string
+      children: string[]
+      image?: string
+    }>
+  }>
+  guide?: string
   timestamp?: string
   filename?: string
   [key: string]: any
@@ -68,14 +78,13 @@ export enum ArticleStatus {
 
 // 处理状态枚举
 export enum ProcessStatus {
-  INIT = 'init',
-  SCRAPING = 'scraping',
-  WAITING_FILE = 'waiting_file',
-  PROCESSING = 'processing',
-  TRANSLATING = 'translating',
-  RENDERING = 'rendering',
-  COMPLETE = 'complete',
-  ERROR = 'error'
+  INIT = 'INIT',
+  SCRAPING = 'SCRAPING',
+  TRANSLATING = 'TRANSLATING',
+  CACHING = 'CACHING',
+  RENDERING = 'RENDERING',
+  COMPLETE = 'COMPLETE',
+  ERROR = 'ERROR'
 }
 
 // 文章验证规则
@@ -158,3 +167,21 @@ export const DEFAULT_TEMPLATE = `<section style="width: 100%; display: flex; fle
     </section>
   </section>
 </section>` 
+
+// Handlebars 模板接口
+export interface HandlebarsTemplate {
+  name: string
+  filename?: string
+  description: string
+  content: string
+  preview_image?: string
+  created_at: string
+  updated_at: string
+  helpers?: Record<string, string>
+  sections?: {
+    name: string
+    xpath: string
+    required?: boolean
+    transform?: string
+  }[]
+}

@@ -12,7 +12,7 @@ export enum ErrorCode {
 
 // 错误响应接口
 export interface ErrorResponse {
-  success: false
+  status: 'error'
   error: {
     message: string
     code: ErrorCode | string
@@ -22,7 +22,7 @@ export interface ErrorResponse {
 
 // 成功响应接口
 export interface SuccessResponse<T> {
-  success: true
+  status: 'success'
   data: T
 }
 
@@ -35,7 +35,7 @@ export const createErrorResponse = (
   defaultMessage: string = '操作失败',
   code: ErrorCode = ErrorCode.UNKNOWN_ERROR
 ): ErrorResponse => ({
-  success: false,
+  status: 'error',
   error: {
     message: error?.message || defaultMessage,
     code: error?.code || code,
@@ -45,7 +45,7 @@ export const createErrorResponse = (
 
 // 创建成功响应的工具函数
 export const createSuccessResponse = <T>(data: T): SuccessResponse<T> => ({
-  success: true,
+  status: 'success',
   data
 })
 

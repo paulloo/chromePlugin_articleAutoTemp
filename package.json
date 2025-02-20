@@ -14,6 +14,7 @@
     "@plasmohq/messaging": "^0.7.1",
     "@plasmohq/selector": "^0.0.5",
     "@plasmohq/storage": "^1.11.0",
+    "@types/react-icons": "^3.0.0",
     "axios": "^1.7.2",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.11",
@@ -22,10 +23,11 @@
     "handlebars": "^4.7.8",
     "handlebars-runtime": "^1.0.12",
     "next": "^14.2.4",
-    "plasmo": "0.84.0",
+    "plasmo": "0.90.3",
     "radash": "^12.1.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "4.1.1",
@@ -57,6 +59,13 @@
       "storage",
       "contextMenus",
       "activeTab"
+    ],
+    "content_scripts": [
+      {
+        "matches": ["https://mp.weixin.qq.com/*"],
+        "js": ["~contents/mpWeixin.ts"],
+        "run_at": "document_end"
+      }
     ],
     "file_system_provider_capabilities": {
       "source": "network"

@@ -26,6 +26,90 @@ Handlebars.registerHelper('boldFirstSentence', function(text: string) {
   )
 })
 
+// 验证HTML内容
+function validateHtml(html: string): boolean {
+  // 检查HTML是否为空或只包含空白字符
+  if (!html || html.trim().length === 0) {
+    return false
+  }
+
+  // 检查基本HTML结构
+  const hasContent = /<[^>]+>/.test(html)
+  if (!hasContent) {
+    return false
+  }
+
+  return true
+}
+
+// 等待内容脚本就绪
+async function waitForContentScript(tabId: number, maxAttempts = 5): Promise<boolean> {
+  const interval = 1000
+  let attempts = 0
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'ping' })
+      
+      logger.debug('内容脚本状态检查', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          attempts,
+          tabId,
+          response
+        }
+      })
+
+      if (response?.success) {
+        logger.info('内容脚本就绪', {
+          category: LogCategory.ARTICLE,
+          data: { 
+            attempts,
+            tabId,
+            status: response.status
+          }
+        })
+        return true
+      }
+
+      // 如果收到响应但未就绪，记录状态
+      if (response?.status) {
+        logger.warn('内容脚本未完全就绪', {
+          category: LogCategory.ARTICLE,
+          data: { 
+            attempts,
+            tabId,
+            status: response.status
+          }
+        })
+      }
+    } catch (error) {
+      logger.debug('等待内容脚本就绪', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          attempts,
+          tabId,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      })
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, interval))
+    attempts++
+  }
+
+  logger.error('内容脚本就绪超时', {
+    category: LogCategory.ARTICLE,
+    data: { 
+      attempts,
+      tabId,
+      maxAttempts
+    }
+  })
+
+  return false
+}
+
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const requestId = Math.random().toString(36).substring(7)
   const { data: articleData, templateName = 'default', tabId } = req.body
@@ -98,21 +182,28 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
     // 渲染模板
     try {
+      const startTime = Date.now()
       // 获取预编译的模板
-      const compiledTemplate = getCompiledTemplate(templateContent, templateName)
-      // 渲染内容
-      const html = renderTemplate(compiledTemplate, articleData)
+      const html = await getCompiledTemplate(
+        templateContent, 
+        templateName, 
+        "493da9bf-a6d3-405c-b026-bec203fb2b9c", 
+        articleData
+      )
 
-      if (!html) {
-        throw new Error('渲染结果为空')
+      // 验证HTML内容
+      if (!validateHtml(html)) {
+        throw new Error('渲染结果不是有效的HTML内容')
       }
 
+      const endTime = Date.now()
       logger.debug('渲染结果', {
         category: LogCategory.ARTICLE,
         data: { 
           requestId,
           htmlLength: html.length,
-          html: html.substring(0, 200) + '...'
+          preview: html.substring(0, 200) + '...',
+          renderTime: `${endTime - startTime}ms`
         }
       })
 
@@ -134,9 +225,19 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
           }
         })
 
-        // 直接使用 tabId 查询特定标签页
+        // 查询标签页
         const tab = await chrome.tabs.get(tabId)
         
+        if (!tab || !tab.url?.includes('mp.weixin.qq.com')) {
+          throw new Error('请在微信公众号编辑器中使用此功能')
+        }
+
+        // 等待内容脚本就绪
+        const isContentScriptReady = await waitForContentScript(tabId)
+        if (!isContentScriptReady) {
+          throw new Error('内容脚本未就绪，请刷新页面重试')
+        }
+
         logger.info('查询到的标签页', {
           category: LogCategory.ARTICLE,
           data: { 
@@ -160,19 +261,6 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
             }
           })
           return res.send(createErrorResponse(new Error('未找到目标标签页')))
-        }
-
-        // 检查标签页 URL
-        if (!tab.url?.includes('mp.weixin.qq.com')) {
-          logger.error('目标页面不是微信公众号编辑器', {
-            category: LogCategory.ARTICLE,
-            data: { 
-              requestId,
-              url: tab.url,
-              tabId: tab.id
-            }
-          })
-          return res.send(createErrorResponse(new Error('请在微信公众号编辑器中使用此功能')))
         }
 
         logger.info('准备发送消息到内容脚本', {
@@ -208,7 +296,8 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
           data: { 
             requestId,
             title: articleData.title,
-            tabId: tab.id
+            tabId: tab.id,
+            totalTime: `${Date.now() - startTime}ms`
           }
         })
 

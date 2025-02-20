@@ -1,8 +1,9 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
-import axios from "axios"
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from "../../utils/errorHandler"
-import type { ArticleContent, ArticleRequestParams, ArticleData } from "../../types/article"
 import { logger, LogCategory } from "../../utils/logger"
+import { apiClient } from "../../utils/api"
+import { ApiEndpoints } from "../../types/api"
+import type { ArticleContent, ArticleRequestParams, ArticleData, ApiResponse } from "../../types/api"
+import axios from "axios"
 
 // 数据清理函数
 const cleanArticleData = (rawData: any): ArticleData => {
@@ -28,103 +29,136 @@ const cleanArticleData = (rawData: any): ArticleData => {
   }
 }
 
-const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
+const handler: PlasmoMessaging.MessageHandler<ArticleRequestParams, ApiResponse<ArticleData>> = async (req, res) => {
   const requestId = Math.random().toString(36).substring(7)
-  const apiURL = process.env.PLASMO_PUBLIC_ARTICLE_API
-
-  logger.info('收到获取文章请求', {
-    category: LogCategory.ARTICLE,
-    data: { 
-      requestId,
-      请求参数: req.body,
-      时间戳: new Date().toISOString()
-    }
-  })
-
-  if (!apiURL) {
-    logger.error('API未配置', {
-      category: LogCategory.ARTICLE,
-      data: { 
-        requestId,
-        时间戳: new Date().toISOString()
-      }
-    })
-    return res.send(createErrorResponse(
-      new Error("API未配置"),
-      "API未配置"
-    ))
-  }
-
-  const params = req.body as ArticleRequestParams
-  if (!params?.filename) {
-    logger.error('文件名不能为空', {
-      category: LogCategory.ARTICLE,
-      data: { 
-        requestId,
-        params,
-        时间戳: new Date().toISOString()
-      }
-    })
-    return res.send(createErrorResponse(
-      new Error("文件名不能为空"),
-      "文件名不能为空"
-    ))
-  }
+  const { id } = req.body
 
   try {
     logger.info('开始获取文章', {
       category: LogCategory.ARTICLE,
       data: { 
         requestId,
-        filename: params.filename,
-        时间戳: new Date().toISOString()
+        id,
+        timestamp: new Date().toISOString()
       }
     })
 
-    const response = await axios.get(`${apiURL}/get_data/${params.filename}`)
-
-    if (!response.data) {
-      throw new Error('获取文章数据为空')
+    if (!id) {
+      throw new Error('文件名不能为空')
     }
 
-    logger.debug('获取到原始数据', {
-      category: LogCategory.ARTICLE,
-      data: { 
-        requestId,
-        rawData: response.data,
-        时间戳: new Date().toISOString()
+    try {
+      const response = await apiClient.request<ArticleData>({
+        method: 'GET',
+        url: ApiEndpoints.GET_ARTICLE,
+        urlParams: { id }
+      })
+
+      logger.debug('获取到原始数据', {
+        category: LogCategory.ARTICLE,
+        data: { 
+          requestId,
+          rawData: response.data,
+          timestamp: new Date().toISOString()
+        }
+      })
+
+      // // 清理和格式化数据
+      // const cleanedData = cleanArticleData(response.data.items[0])
+
+      // logger.debug('清理后的数据', {
+      //   category: LogCategory.ARTICLE,
+      //   data: { 
+      //     requestId,
+      //     cleanedData,
+      //     timestamp: new Date().toISOString()
+      //   }
+      // })
+
+      res.send({
+        success: true,
+        // message: '获取文章成功',
+        data: response.data,
+        // timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      // 处理 axios 错误
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status
+        const errorMessage = error.response?.data?.message || error.message
+
+        logger.error('API请求失败', {
+          category: LogCategory.ARTICLE,
+          data: { 
+            requestId,
+            status,
+            errorMessage,
+            url: error.config?.url,
+            timestamp: new Date().toISOString()
+          }
+        })
+
+        // 处理特定状态码
+        if (status === 404) {
+          res.send({
+            status: 'error',
+            message: `文章 "${id}" 不存在`,
+            data: {
+              items: [],
+              pagination: null
+            },
+            timestamp: new Date().toISOString()
+          })
+          return
+        }
+
+        // 其他 HTTP 错误
+        res.send({
+          status: 'error',
+          message: `API请求失败: ${errorMessage}`,
+          data: {
+            items: [],
+            pagination: null
+          },
+          timestamp: new Date().toISOString()
+        })
+        return
       }
-    })
 
-    // 清理和格式化数据
-    const cleanedData = cleanArticleData(response.data)
-
-    logger.debug('清理后的数据', {
-      category: LogCategory.ARTICLE,
-      data: { 
-        requestId,
-        cleanedData,
-        时间戳: new Date().toISOString()
-      }
-    })
-
-    return res.send(createSuccessResponse(cleanedData))
+      // 重新抛出非 axios 错误
+      throw error
+    }
   } catch (error) {
     logger.error('获取文章失败', {
       category: LogCategory.ARTICLE,
       data: { 
         requestId,
-        filename: params.filename,
+        id,
         error,
-        错误类型: typeof error,
-        错误信息: error.message,
-        错误栈: error.stack,
-        时间戳: new Date().toISOString()
+        errorType: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
       }
     })
 
-    return res.send(createErrorResponse(error))
+    // 如果是 API 错误，直接返回
+    if ((error as any).status === 'error') {
+      res.send(error)
+      return
+    }
+
+    // 其他错误转换为标准格式
+    res.send({
+      status: 'error',
+      message: error instanceof Error ? error.message : '获取文章失败',
+      data: {
+        items: [],
+        pagination: null
+      },
+      timestamp: new Date().toISOString()
+    })
   }
 }
 
-export default withErrorHandling(handler)
+export default handler

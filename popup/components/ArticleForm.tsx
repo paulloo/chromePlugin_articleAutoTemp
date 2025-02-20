@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react"
 import { TranslateServiceSelect } from "./TranslateServiceSelect"
-import { TemplateSelect } from "./TemplateSelect"
+import HandlebarsTemplateSelector from "./HandlebarsTemplateSelector"
+
 import type { ProcessStatus } from "../../types/article"
 import { ProgressBar } from "./ProgressBar"
 import { ErrorMessage } from "./ErrorMessage"
@@ -59,7 +60,7 @@ export const ArticleForm: React.FC<Props> = ({
         <label htmlFor="template" className="block text-sm font-medium mb-1">
           渲染模板
         </label>
-        <TemplateSelect
+        <HandlebarsTemplateSelector
           value={templateName}
           onChange={setTemplateName}
           disabled={loading}

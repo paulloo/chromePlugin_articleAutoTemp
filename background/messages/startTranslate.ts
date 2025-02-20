@@ -1,134 +1,129 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
-import type { ArticleData } from "../../types/article"
 import { logger, LogCategory } from "../../utils/logger"
-import { createErrorResponse, createSuccessResponse } from "../../utils/errorHandler"
 import { translateManager } from "../../utils/translate/manager"
-import { TranslateServiceType } from "../../utils/translate/types"
+import type { ArticleData, ApiResponse } from "../../types/api"
+import type { TranslateServiceType } from "../../utils/translate/types"
 
-// 添加文本清理函数
-function cleanText(text: string): string {
-  if (!text) return '';
-  
-  // 过滤引用标记
-  text = text.replace(/<sup[^>]*>[\s\S]*?<\/sup>/g, '');
-  // 过滤HTML标签
-  text = text.replace(/<\/?[^>]+(>|$)/g, "");
-  // 清理空白字符
-  text = text.trim();
-  // 移除多余空格
-  text = text.replace(/\s+/g, ' ');
-  
-  return text;
+interface TranslateRequest {
+  data: ArticleData
+  serviceType?: TranslateServiceType
 }
 
-// 添加文章数据翻译函数
-async function translateArticleData(data: ArticleData, serviceType: TranslateServiceType = TranslateServiceType.GOOGLE): Promise<ArticleData> {
-  logger.info('开始翻译文章数据', {
-    category: LogCategory.ARTICLE,
-    data: { 
-      title: data.title,
-      serviceType
-    }
-  })
-  
+const handler: PlasmoMessaging.MessageHandler<TranslateRequest, ApiResponse<ArticleData>> = async (req, res) => {
+  const { data, serviceType } = req.body
+  const requestId = Math.random().toString(36).substring(7)
+
   try {
-    // 初始化翻译服务
-    translateManager.initService({
-      type: serviceType,
-      apiUrl: process.env.PLASMO_PUBLIC_TRANSLATE_GOOGLE_API_URL!,
-      apiKey: process.env.PLASMO_PUBLIC_TRANSLATE_GOOGLE_API_KEY!,
-      maxBatchSize: 10,
-      timeout: 10000
-    })
-
-    // 收集所有需要翻译的文本
-    const textsToTranslate: string[] = []
-    
-    // 添加标题和简介
-    textsToTranslate.push(cleanText(data.title))
-    textsToTranslate.push(cleanText(data.profile))
-    
-    // 添加步骤标题和内容
-    data.steps.forEach(step => {
-      textsToTranslate.push(cleanText(step.title))
-      step.step_items.forEach(item => {
-        textsToTranslate.push(cleanText(item.content))
-        item.children.forEach(child => {
-          textsToTranslate.push(cleanText(child))
-        })
+    // 如果提供了服务类型，初始化对应的服务
+    if (serviceType) {
+      translateManager.initService({
+        type: serviceType,
+        apiUrl: process.env.PLASMO_PUBLIC_TRANSLATE_GOOGLE_API_URL,
+        apiKey: process.env.PLASMO_PUBLIC_TRANSLATE_GOOGLE_API_KEY
       })
-    })
+    }
 
-    // 批量翻译所有文本
-    logger.debug('开始批量翻译', {
+    logger.info('开始翻译文章', {
       category: LogCategory.ARTICLE,
       data: { 
-        textCount: textsToTranslate.length,
-        texts: textsToTranslate,
-        serviceType
+        requestId,
+        title: data.title,
+        serviceType,
+        timestamp: new Date().toISOString()
       }
     })
 
-    const translatedTexts = await translateManager.translateTexts(textsToTranslate, {
+    const translateOptions = {
       from: 'en',
       to: 'zh'
-    })
-
-    // 构建翻译后的数据
-    let textIndex = 0
-    const translatedData: ArticleData = {
-      title: translatedTexts[textIndex++],
-      profile: translatedTexts[textIndex++],
-      steps: data.steps.map(step => ({
-        title: translatedTexts[textIndex++],
-        step_items: step.step_items.map(item => {
-          const content = translatedTexts[textIndex++]
-          const childrenCount = item.children.length
-          const children = translatedTexts.slice(textIndex, textIndex + childrenCount)
-          textIndex += childrenCount
-          return { 
-            content, 
-            children,
-            image: item.image // 保留原始图片链接
-          }
-        })
-      }))
     }
 
-    logger.info('文章翻译完成', {
+    // 翻译标题
+    const translatedTitle = await translateManager.translateText(data.title, translateOptions)
+
+    // 翻译简介
+    const translatedProfile = await translateManager.translateText(data.profile, translateOptions)
+
+    // 翻译步骤
+    const translatedSteps = await Promise.all(
+      data.steps.map(async (step) => {
+        // 翻译步骤标题
+        const translatedStepTitle = await translateManager.translateText(step.title, translateOptions)
+
+        // 翻译步骤内容
+        const translatedStepItems = await Promise.all(
+          step.step_items.map(async (item) => {
+            const translatedContent = await translateManager.translateText(item.content, translateOptions)
+
+            // 翻译子项
+            const translatedChildren = await Promise.all(
+              item.children.map(child => 
+                translateManager.translateText(child, translateOptions)
+              )
+            )
+
+            return {
+              ...item,
+              content: translatedContent,
+              children: translatedChildren
+            }
+          })
+        )
+
+        return {
+          title: translatedStepTitle,
+          step_items: translatedStepItems
+        }
+      })
+    )
+
+    // 构建翻译后的文章数据
+    const translatedData: ArticleData = {
+      ...data,
+      title: translatedTitle,
+      profile: translatedProfile,
+      steps: translatedSteps,
+      guide: data.guide || "点击上方蓝字关注我们"
+    }
+
+    logger.info('翻译成功', {
       category: LogCategory.ARTICLE,
       data: { 
+        requestId,
         originalTitle: data.title,
         translatedTitle: translatedData.title,
-        serviceType
+        serviceType,
+        hasGuide: !!translatedData.guide,
+        timestamp: new Date().toISOString()
       }
     })
-
-    return translatedData
+    
+    res.send({
+      success: true,
+      data: translatedData
+    })
   } catch (error) {
-    logger.error('文章翻译失败', {
+    logger.error('翻译处理失败', {
       category: LogCategory.ARTICLE,
       data: { 
+        requestId,
+        title: data.title,
+        serviceType,
         error,
-        serviceType
+        errorType: typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString()
       }
     })
-    throw error
-  }
-}
 
-const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
-  try {
-    const { data, serviceType = TranslateServiceType.GOOGLE } = req.body
-    
-    if (!data) {
-      return res.send(createErrorResponse(new Error('翻译数据为空')))
-    }
-
-    const translatedData = await translateArticleData(data, serviceType)
-    return res.send(createSuccessResponse(translatedData))
-  } catch (error) {
-    return res.send(createErrorResponse(error))
+    res.send({
+      success: false,
+      data: null,
+      error: {
+        message: error instanceof Error ? error.message : '翻译处理失败',
+        code: 'TRANSLATE_ERROR'
+      }
+    })
   }
 }
 

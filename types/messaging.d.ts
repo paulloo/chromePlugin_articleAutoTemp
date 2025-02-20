@@ -5,7 +5,8 @@ import type {
   ArticleContent, 
   ArticleData, 
   ArticleRequestParams,
-  Template 
+  Template,
+  HandlebarsTemplate 
 } from "./article"
 
 declare module "@plasmohq/messaging" {
@@ -58,6 +59,44 @@ declare module "@plasmohq/messaging" {
 
     // 模板相关
     "get-templates": {
+      input: void
+      output: ApiResponse<Template[]>
+    }
+    "getHandlebarsTemplates": {
+      input: void
+      output: ApiResponse<Template[]>
+    }
+    "getHandlebarsTemplate": {
+      input: { filename: string }
+      output: ApiResponse<Template>
+    }
+    "createHandlebarsTemplate": {
+      input: {
+        name: string
+        template_content: string
+      }
+      output: ApiResponse<{
+        filename: string
+        message: string
+      }>
+    }
+    "updateHandlebarsTemplate": {
+      input: {
+        filename: string
+        template_content: string
+      }
+      output: ApiResponse<{
+        message: string
+      }>
+    }
+    "deleteHandlebarsTemplate": {
+      input: { filename: string }
+      output: ApiResponse<{
+        message: string
+      }>
+    }
+    // 文章模板相关
+    "get-article-templates": {
       input: void
       output: ApiResponse<Template[]>
     }

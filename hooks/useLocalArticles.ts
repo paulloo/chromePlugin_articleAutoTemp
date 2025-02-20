@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from "react"
 import { sendToBackground } from "@plasmohq/messaging"
-import { logger, LogCategory } from "../../utils/logger"
-import type { ArticleListItem, ArticleContent } from "../../types/article"
-import type { ApiResponse, ErrorResponse } from "../../utils/errorHandler"
+import { logger, LogCategory } from "../utils/logger"
+import type { ArticleListItem, ArticleContent } from "../types/article"
+import type { ErrorResponse } from "../utils/errorHandler"
+import type { ApiResponse, ApiError, Template } from "../types/api"
 
 interface UseLocalArticlesResult {
   localArticles: ArticleListItem[]
@@ -40,7 +41,6 @@ export const useLocalArticles = (): UseLocalArticlesResult => {
       const response = await sendToBackground<void, ApiResponse<ArticleListItem[]>>({
         name: "get-local-articles"
       })
-
       logger.debug('获取到响应', {
         category: LogCategory.ARTICLE,
         data: { 
@@ -49,12 +49,12 @@ export const useLocalArticles = (): UseLocalArticlesResult => {
         }
       })
 
-      if (!response.success) {
-        const errorResponse = response as ErrorResponse
-        throw new Error(errorResponse.error.message || '获取文章列表失败')
+      if (response.status === 'error') {
+        const errorResponse = response as unknown as ApiError
+        throw new Error(errorResponse.error.details || '获取文章列表失败')
       }
 
-      const articles = Array.isArray(response.data) ? response.data : []
+      const articles = Array.isArray(response.data.items) ? response.data.items : []
       
       logger.info('成功获取文章列表', {
         category: LogCategory.ARTICLE,
@@ -63,7 +63,6 @@ export const useLocalArticles = (): UseLocalArticlesResult => {
           时间戳: new Date().toISOString() 
         }
       })
-      
       setState({
         localArticles: articles,
         loading: false,
@@ -104,13 +103,11 @@ export const useLocalArticles = (): UseLocalArticlesResult => {
         const errorResponse = response as ErrorResponse
         throw new Error(errorResponse.error.message || '获取文章失败')
       }
-
       // 渲染文章
-      await sendToBackground({
+      const res = await sendToBackground({
         name: "renderArticle",
         body: response.data
       })
-
       logger.info('文章渲染完成', {
         category: LogCategory.ARTICLE,
         data: { filename }
